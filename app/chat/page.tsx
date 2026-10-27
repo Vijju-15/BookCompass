@@ -580,8 +580,8 @@ function ChatAppContent() {
 
                 {/* Notice Banner (honest cue, level, heat level) */}
                 {turn.notice && (
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs">
-                    <Info size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-secondary border border-border text-foreground text-xs">
+                    <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
                     <p className="leading-relaxed font-medium">{turn.notice}</p>
                   </div>
                 )}
@@ -651,8 +651,8 @@ function ChatAppContent() {
 
                 {/* Notice Banner for streaming turn */}
                 {streamNotice && (
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs">
-                    <Info size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-secondary border border-border text-foreground text-xs">
+                    <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
                     <p className="leading-relaxed font-medium">{streamNotice}</p>
                   </div>
                 )}

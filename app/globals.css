@@ -2,58 +2,77 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  /* Light Mode: Vintage Library & Garden Linen */
-  --color-background: #faf7f2;
-  --color-foreground: #221c16;
-  --color-muted: #efe8dc;
-  --color-muted-foreground: #6e6255;
-  --color-border: #e3d8ca;
-  --color-input: #ebe1d2;
-  --color-ring: #2a5940;
-  --color-primary: #2a5940;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #f0e8db;
-  --color-secondary-foreground: #221c16;
-  --color-accent: #ede4d4;
-  --color-accent-foreground: #221c16;
-  --color-destructive: #c0392b;
-  --color-destructive-foreground: #ffffff;
-  --color-card: #ffffff;
-  --color-card-foreground: #221c16;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #221c16;
-
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.145 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.708 0 0);
 }
 
-@layer base {
-  /* Dark Mode: Soft Night Mountain & Alpine Starlight */
-  .dark {
-    --color-background: #0b0e14;
-    --color-foreground: #e6edf5;
-    --color-muted: #151c28;
-    --color-muted-foreground: #8295ab;
-    --color-border: #1e2838;
-    --color-input: #151c28;
-    --color-ring: #7ea3cc;
-    --color-primary: #7ea3cc;
-    --color-primary-foreground: #090e16;
-    --color-secondary: #141a24;
-    --color-secondary-foreground: #e6edf5;
-    --color-accent: #17202d;
-    --color-accent-foreground: #e6edf5;
-    --color-destructive: #e05252;
-    --color-destructive-foreground: #ffffff;
-    --color-card: #10151f;
-    --color-card-foreground: #e6edf5;
-    --color-popover: #10151f;
-    --color-popover-foreground: #e6edf5;
-  }
+.dark {
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.25 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0 0 0);
+  --border: oklch(0.26 0 0);
+  --input: oklch(0.32 0 0);
+  --ring: oklch(0.556 0 0);
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
@@ -74,7 +93,7 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-border);
+  background-color: var(--border);
   border-radius: 3px;
 }
 
@@ -87,9 +106,9 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--color-muted) 25%,
-    var(--color-border) 50%,
-    var(--color-muted) 75%
+    var(--muted) 25%,
+    var(--border) 50%,
+    var(--muted) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;

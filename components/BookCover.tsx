@@ -12,18 +12,20 @@ interface BookCoverProps {
   className?: string;
 }
 
-// Genre-aware gradients for stylized fallback covers
+// Neutral desaturated gradients for stylized fallback covers
 const GENRE_GRADIENTS: Record<string, string> = {
-  romance: "from-rose-500 via-pink-600 to-amber-600",
-  thriller: "from-slate-800 via-zinc-900 to-red-950",
-  horror: "from-zinc-900 via-neutral-950 to-red-950",
-  "action/adventure": "from-amber-600 via-orange-600 to-red-700",
-  mystery: "from-indigo-900 via-slate-900 to-blue-950",
-  "sci-fi": "from-cyan-700 via-blue-900 to-indigo-950",
-  fantasy: "from-purple-700 via-violet-900 to-indigo-950",
-  "motivational/self-help": "from-emerald-600 via-teal-700 to-cyan-900",
-  "non-fiction": "from-blue-700 via-slate-800 to-zinc-900",
-  classics: "from-amber-700 via-yellow-800 to-stone-900",
+  romance: "from-neutral-700 via-neutral-800 to-neutral-900",
+  thriller: "from-neutral-800 via-neutral-900 to-black",
+  horror: "from-neutral-900 via-black to-neutral-950",
+  "action-adventure": "from-neutral-700 via-neutral-800 to-neutral-900",
+  "action/adventure": "from-neutral-700 via-neutral-800 to-neutral-900",
+  mystery: "from-neutral-800 via-neutral-900 to-black",
+  "sci-fi": "from-neutral-800 via-neutral-900 to-neutral-950",
+  fantasy: "from-neutral-700 via-neutral-800 to-neutral-900",
+  "motivational/self-help": "from-neutral-700 via-neutral-800 to-neutral-900",
+  "self-help": "from-neutral-700 via-neutral-800 to-neutral-900",
+  "non-fiction": "from-neutral-800 via-neutral-800 to-neutral-900",
+  classics: "from-neutral-700 via-neutral-800 to-neutral-900",
 };
 
 function normalizeCoverUrl(url?: string | null): string | null {
@@ -54,7 +56,7 @@ export function BookCover({
   const cleanUrl = normalizeCoverUrl(coverUrl);
   const gradient =
     GENRE_GRADIENTS[genre.toLowerCase()] ||
-    "from-purple-800 via-indigo-900 to-slate-950";
+    "from-neutral-800 via-neutral-900 to-black";
 
   const isSmall = size === "sm";
 
@@ -63,7 +65,7 @@ export function BookCover({
     return (
       <div
         className={`
-          flex-shrink-0 rounded-lg overflow-hidden relative shadow-md select-none
+          flex-shrink-0 rounded-lg overflow-hidden relative shadow-sm select-none
           bg-gradient-to-br ${gradient} text-white flex flex-col justify-between p-2
           border-l-4 border-l-white/20 border border-white/10
           ${isSmall ? "w-10 h-14 p-1" : "w-24 h-36 p-2.5"}
@@ -72,9 +74,9 @@ export function BookCover({
         title={`${title} by ${author}`}
       >
         <div className="flex items-center justify-between opacity-80">
-          <BookOpen size={isSmall ? 10 : 14} className="opacity-70" />
+          <BookOpen size={isSmall ? 10 : 14} className="opacity-70 text-white/90" />
           {!isSmall && (
-            <span className="text-[9px] uppercase tracking-wider font-semibold opacity-60 truncate max-w-[50px]">
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-white/90 opacity-80 truncate max-w-[50px]">
               {genre}
             </span>
           )}
@@ -82,7 +84,7 @@ export function BookCover({
 
         <div className="my-auto">
           <p
-            className={`font-serif font-bold leading-tight line-clamp-3 text-white drop-shadow-xs ${
+            className={`font-serif font-bold leading-tight line-clamp-3 text-white/95 ${
               isSmall ? "text-[8px] leading-2" : "text-[11px] leading-snug"
             }`}
           >
@@ -91,7 +93,7 @@ export function BookCover({
         </div>
 
         <p
-          className={`truncate font-sans opacity-75 ${
+          className={`truncate font-sans text-white/70 ${
             isSmall ? "text-[6px]" : "text-[9px]"
           }`}
         >
@@ -104,22 +106,19 @@ export function BookCover({
   return (
     <div
       className={`
-        flex-shrink-0 rounded-lg overflow-hidden bg-muted relative shadow-sm
+        flex-shrink-0 rounded-lg overflow-hidden relative shadow-sm border border-border
+        bg-muted
         ${isSmall ? "w-10 h-14" : "w-24 h-36"}
         ${className}
       `}
     >
-      {/* Skeleton while loading */}
       {!imageLoaded && (
-        <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
-          <BookOpen size={isSmall ? 12 : 20} className="text-muted-foreground/30" />
-        </div>
+        <div className="absolute inset-0 skeleton" />
       )}
-
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={cleanUrl}
-        alt={`Cover of ${title}`}
-        referrerPolicy="no-referrer"
+        alt={`${title} cover`}
         loading="lazy"
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageFailed(true)}

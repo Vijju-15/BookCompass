@@ -10,10 +10,10 @@ interface BookCardProps {
   index: number;
 }
 
-const LEVEL_COLORS = {
-  beginner: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  intermediate: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  advanced: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400",
+const LEVEL_DOTS: Record<string, string> = {
+  beginner: "•",
+  intermediate: "••",
+  advanced: "•••",
 };
 
 export function BookCard({ book, index }: BookCardProps) {
@@ -22,8 +22,8 @@ export function BookCard({ book, index }: BookCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
-      className="group rounded-xl border border-border bg-card overflow-hidden hover:shadow-lg
-        hover:border-primary/30 transition-all duration-300"
+      className="group rounded-xl border border-border bg-card overflow-hidden hover:shadow-sm
+        hover:border-foreground/30 transition-all duration-300"
     >
       <div className="flex gap-4 p-4">
         {/* Book cover with fallback */}
@@ -51,22 +51,25 @@ export function BookCard({ book, index }: BookCardProps) {
           {/* Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLORS[book.level]}`}
+              className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground inline-flex items-center gap-1"
             >
-              {book.level}
+              <span className="tracking-tighter font-bold text-xs" aria-hidden="true">
+                {LEVEL_DOTS[book.level] ?? "•"}
+              </span>
+              <span className="capitalize">{book.level}</span>
             </span>
             {book.pageCount && (
-              <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground">
                 {book.pageCount} pages
               </span>
             )}
             {book.avgRating && (
-              <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground flex items-center gap-0.5">
-                <Star size={10} className="fill-amber-400 text-amber-400" />
+              <span className="px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground flex items-center gap-1">
+                <Star size={10} className="fill-foreground text-foreground" />
                 {book.avgRating.toFixed(1)}
               </span>
             )}
-            <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground capitalize">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground capitalize">
               {book.pacing} pace
             </span>
           </div>
@@ -76,7 +79,7 @@ export function BookCard({ book, index }: BookCardProps) {
             {book.genres.slice(0, 3).map((genre) => (
               <span
                 key={genre}
-                className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded"
+                className="text-xs text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded"
               >
                 {genre}
               </span>
@@ -95,7 +98,7 @@ export function BookCard({ book, index }: BookCardProps) {
                 </p>
               )}
               {book.watchOut && (
-                <p className="text-amber-600 dark:text-amber-400 font-medium">
+                <p className="text-foreground/70 font-medium italic">
                   Note: {book.watchOut}
                 </p>
               )}
@@ -112,8 +115,8 @@ export function BookCard({ book, index }: BookCardProps) {
               href={book.amazonSearchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 mt-2 text-xs text-primary
-                hover:text-primary/80 transition-colors"
+              className="inline-flex items-center gap-1 mt-2 text-xs text-foreground/80
+                hover:text-foreground underline underline-offset-2 transition-colors"
             >
               Find on Amazon
               <ExternalLink size={10} />
@@ -125,7 +128,7 @@ export function BookCard({ book, index }: BookCardProps) {
       {/* Score indicator */}
       {book.score !== undefined && (
         <div className="px-4 pb-3">
-          <div className="w-full bg-muted rounded-full h-1.5">
+          <div className="w-full bg-secondary rounded-full h-1.5">
             <div
               className="bg-primary h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${Math.round(book.score * 100)}%` }}

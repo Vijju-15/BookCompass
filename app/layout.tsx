@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="min-h-screen font-sans bg-black text-white antialiased">
+      <body className="min-h-screen font-sans bg-background text-foreground antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
