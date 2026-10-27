@@ -2,7 +2,7 @@
  * Reader Level Rubric — Single Source of Truth
  *
  * Defines the characteristics of each reading level.
- * Used by the scoring algorithm and seed data tagging.
+ * Used by the scoring algorithm, seed data tagging, and level classification.
  */
 
 export const LEVELS = ["beginner", "intermediate", "advanced"] as const;
@@ -23,8 +23,8 @@ export const LEVEL_RUBRIC: Record<Level, LevelDefinition> = {
     level: "beginner",
     label: "Beginner",
     description: "Perfect for new readers or those returning to reading",
-    pageRange: { min: 100, max: 300 },
-    complexityRange: { min: 1, max: 1 },
+    pageRange: { min: 100, max: 320 },
+    complexityRange: { min: 1, max: 2 },
     pacing: ["fast", "medium"],
     traits: [
       "Simple, linear plot",
@@ -67,8 +67,21 @@ export const LEVEL_RUBRIC: Record<Level, LevelDefinition> = {
 };
 
 /**
+ * Classify a book's level according to Section 3.5 single source of truth:
+ * - complexity 1-2 and pages <= 320 -> beginner
+ * - complexity 4-5 or pages > 500 -> advanced
+ * - everything else -> intermediate
+ */
+export function classifyLevel(complexity: number, pageCount: number | null): Level {
+  const pages = pageCount || 250;
+  if (complexity <= 2 && pages <= 320) return "beginner";
+  if (complexity >= 4 || pages > 500) return "advanced";
+  return "intermediate";
+}
+
+/**
  * Get the adjacent levels for a given level.
- * Used in scoring: adjacent level = 0.5 match, exact = 1.0, others = 0.0
+ * Used in scoring: adjacent level = 0.5 match, exact = 1.0, others = 0.1
  */
 export function getAdjacentLevels(level: Level): Level[] {
   switch (level) {

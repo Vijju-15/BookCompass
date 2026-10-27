@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { RecommendRequestSchema } from "@/lib/schemas";
 import { parsePreferences } from "@/lib/chains/parsePreferences";
 import { generateStructuredExplanation } from "@/lib/chains/explainRecommendations";
+import { buildReaderContext, type ReaderContext } from "@/lib/profile/context";
+import { buildMatchFacts } from "@/lib/scoring/matchFacts";
 import { searchCatalog, getDynamicReadingLadder } from "@/lib/retrieval/catalog";
 import {
   scoreBookDetailed,
@@ -87,10 +89,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, genre, level, email, chatId, excludeBookIds = [] } = parsed.data;
+    const { profile, message, genre, level, email, chatId, excludeBookIds = [] } = parsed.data;
 
     // Stage 1: Raw request
-    debugStages.stage1_rawRequest = { message, genre, level, email, chatId, excludeBookIds };
+    debugStages.stage1_rawRequest = { profile, message, genre, level, email, chatId, excludeBookIds };
     console.log("[STAGE 1: Raw Request]", debugStages.stage1_rawRequest);
 
     // Start SSE stream
@@ -210,7 +212,8 @@ export async function POST(request: NextRequest) {
               finalScore: score,
             });
 
-            return { ...book, score };
+            const matchFacts = buildMatchFacts(book, readerContext);
+            return { ...book, score, matchFacts };
           });
 
           // Sort by score descending and take top 15 candidates

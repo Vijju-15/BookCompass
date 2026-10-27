@@ -8,59 +8,60 @@ import {
   type Preferences,
 } from "@/lib/schemas";
 import { cleanText } from "@/lib/text/cleanText";
+import { buildMatchFacts } from "@/lib/scoring/matchFacts";
+import type { ReaderContext } from "@/lib/profile/context";
 
-const SYSTEM_PROMPT = `You are BookCompass, an exceptionally knowledgeable, friendly, and literary book recommendation assistant.
+const SYSTEM_PROMPT = `Write short explanations for book recommendations.
 
-YOUR MISSION:
-1. DIRECT ANSWER: If the user asked a question (e.g. "is The Notebook good to start with romance?", "recommend something like Dune"), address their specific question directly, warmly, and thoroughly in the summary paragraph.
-2. CLEAN PROSE ONLY: NEVER output markdown asterisks (no **bold**, no *italics*), no markdown headers (###), and no bullet points (- or *). Write natural, eloquent, flowing paragraphs.
-3. GROUNDING: Ground all explanations strictly in the verified facts provided for each book (level, pacing, complexity, description, tone). Never invent imaginary awards, plot points, or mismatched page counts.
-4. PER-BOOK INSIGHTS: For each book in the list, explain:
-   - whyItFits: Why this book specifically satisfies what the user is looking for.
-   - whyThisLevel: How its pacing and complexity match the reader's level.
-   - watchOut: Optional content advisory or stylistic heads-up (e.g. "slow beginning", "sensitive themes", or null).
-5. READING LADDER NOTE: Provide a brief 1-sentence note introducing the reading progression if applicable.`;
+Rules:
+- Use only the facts in each book's "matchFacts" and "description". Do not add plot details,
+  awards, numbers or opinions that are not given.
+- whyItFits: 1 to 2 plain sentences linking the book to what the reader chose.
+- whyThisLevel: 1 plain sentence about level and complexity.
+- watchOut: one honest caveat, or null.
+- Plain text only. No markdown, no asterisks, no hashes, no bullets, no emojis.
+- No filler openers such as "Absolutely" or "Great choice".
+- Return every supplied bookId exactly once, in the supplied order.`;
 
 /**
- * Generate structured explanations for recommended books.
+ * Generate structured explanations for recommended books, grounded strictly on code-built matchFacts.
  */
 export async function generateStructuredExplanation(
   books: Book[],
   preferences: Preferences,
   userMessage: string,
-  existingNotice?: string | null
+  existingNotice?: string | null,
+  context?: ReaderContext | null
 ): Promise<ExplanationResponse> {
   const model = getChatModel({ maxOutputTokens: 2048, temperature: 0.3 });
   const structuredModel = model.withStructuredOutput(ExplanationResponseSchema);
 
-  const bookSummaries = books.map((b, i) => ({
-    bookId: b.id,
-    title: b.title,
-    author: b.author,
-    level: b.level,
-    complexity: b.complexity,
-    pacing: b.pacing,
-    tone: b.tone,
-    pages: b.pageCount,
-    description: b.description?.slice(0, 300),
-    whyStartHere: b.whyStartHere,
-  }));
+  const booksWithMatchFacts = books.map((b) => {
+    const facts = buildMatchFacts(b, context);
+    return {
+      bookId: b.id,
+      title: b.title,
+      author: b.author,
+      level: b.level,
+      complexity: b.complexity,
+      pacing: b.pacing,
+      tone: b.tone,
+      pages: b.pageCount,
+      description: b.description?.slice(0, 300),
+      matchFacts: facts,
+    };
+  });
 
   try {
     const result = await structuredModel.invoke([
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `User query: "${userMessage}"
-Target Preferences:
-- Requested Level: ${preferences.level}
-- Genres: ${preferences.genres.join(", ")}
-${preferences.subGenres && preferences.subGenres.length > 0 ? `- Sub-genres: ${preferences.subGenres.join(", ")}` : ""}
-${preferences.mood && preferences.mood.length > 0 ? `- Mood: ${preferences.mood.join(", ")}` : ""}
-${preferences.heatLevel ? `- Heat Level: ${preferences.heatLevel}` : ""}
+        content: `READER_CONTEXT:
+${JSON.stringify(context || preferences, null, 2)}
 
-Verified Books:
-${JSON.stringify(bookSummaries, null, 2)}`,
+BOOKS:
+${JSON.stringify(booksWithMatchFacts, null, 2)}`,
       },
     ]);
 
