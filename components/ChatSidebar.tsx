@@ -14,7 +14,7 @@ import {
   LogOut,
   LogIn,
 } from "lucide-react";
-import type { Book, LadderStep } from "@/lib/schemas";
+import type { Book, LadderStep, ReaderProfile, ReaderContext } from "@/lib/schemas";
 
 export interface ChatTurn {
   id: string;
@@ -22,6 +22,8 @@ export interface ChatTurn {
   genre?: string | null;
   level?: string | null;
   notice?: string | null;
+  profile?: ReaderProfile | null;
+  context?: ReaderContext | null;
   books: Book[];
   ladder: LadderStep[];
   explanation: string;

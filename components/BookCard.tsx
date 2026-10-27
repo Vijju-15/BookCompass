@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, Star } from "lucide-react";
+import { ExternalLink, Star, Check } from "lucide-react";
 import { BookCover } from "@/components/BookCover";
 import type { Book } from "@/lib/schemas";
 
@@ -72,6 +72,24 @@ export function BookCard({ book, index }: BookCardProps) {
             <span className="px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground capitalize">
               {book.pacing} pace
             </span>
+            {book.sources && book.sources.length > 0 && (
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-secondary text-muted-foreground"
+                title={
+                  book.sources.includes("google") && book.sources.includes("openlibrary")
+                    ? "Verified across Google Books & Open Library"
+                    : book.sources.includes("google")
+                    ? "Verified via Google Books"
+                    : "Verified via Open Library"
+                }
+              >
+                {book.sources.includes("google") && book.sources.includes("openlibrary")
+                  ? "Google + OpenLib"
+                  : book.sources.includes("google")
+                  ? "Google Books"
+                  : "Open Library"}
+              </span>
+            )}
           </div>
 
           {/* Genre tags */}
@@ -108,6 +126,26 @@ export function BookCard({ book, index }: BookCardProps) {
               {book.whyStartHere}
             </p>
           ) : null}
+
+          {/* Why this matched facts */}
+          {book.matchFacts && book.matchFacts.length > 0 && (
+            <div className="mt-3 pt-2.5 border-t border-border/50">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                Why this matched
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {book.matchFacts.slice(0, 4).map((fact, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-secondary/80 text-foreground"
+                  >
+                    <Check size={11} className="text-primary shrink-0" />
+                    <span>{fact}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Amazon link */}
           {book.amazonSearchUrl && (

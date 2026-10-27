@@ -23,7 +23,8 @@ import { ChatStream } from "@/components/ChatStream";
 import { ChatSidebar, type UserChat, type ChatTurn } from "@/components/ChatSidebar";
 import { ReaderProfileForm } from "@/components/ReaderProfileForm";
 import { ProfileSummaryBar } from "@/components/ProfileSummaryBar";
-import type { ReaderProfile } from "@/lib/schemas";
+import { GenreInferenceCard } from "@/components/GenreInferenceCard";
+import type { ReaderProfile, ReaderContext } from "@/lib/schemas";
 import type { Book, LadderStep, Genre, Level } from "@/lib/schemas";
 
 function subscribeToEmail(callback: () => void) {
@@ -116,6 +117,7 @@ function ChatAppContent() {
   }, [supabase]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [currentProfile, setCurrentProfile] = useState<ReaderProfile | null>(null);
+  const [currentContext, setCurrentContext] = useState<ReaderContext | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [chatHistory, setChatHistory] = useState<UserChat[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -199,6 +201,14 @@ function ChatAppContent() {
     }
 
     setTurns(loadedTurns);
+    const lastTurnWithProfile = [...loadedTurns].reverse().find((t) => t.profile);
+    if (lastTurnWithProfile?.profile) {
+      setCurrentProfile(lastTurnWithProfile.profile);
+    }
+    const lastTurnWithContext = [...loadedTurns].reverse().find((t) => t.context);
+    if (lastTurnWithContext?.context) {
+      setCurrentContext(lastTurnWithContext.context);
+    }
     setCurrentPrompt(null);
     setBooks([]);
     setLadder([]);
@@ -213,6 +223,10 @@ function ChatAppContent() {
     setBooks([]);
     setLadder([]);
     setStreamText("");
+    setStreamNotice(null);
+    setCurrentProfile(null);
+    setCurrentContext(null);
+    setIsEditingProfile(false);
     setError(null);
   };
 
@@ -265,6 +279,7 @@ function ChatAppContent() {
       let latestBooks: Book[] = [];
       let latestLadder: LadderStep[] = [];
       let latestNotice: string | null = null;
+      let latestContext: ReaderContext | null = null;
       let accumulatedText = "";
 
       try {
@@ -274,8 +289,10 @@ function ChatAppContent() {
           )
         );
 
+        const effectiveProfile = payload.profile || currentProfile;
         const payloadToSend = {
           message: payload.message.trim(),
+          ...(effectiveProfile ? { profile: effectiveProfile } : {}),
           ...(payload.genre ? { genre: payload.genre } : {}),
           ...(payload.level ? { level: payload.level } : {}),
           ...(userEmail?.trim() ? { email: userEmail.trim().toLowerCase() } : {}),
@@ -334,7 +351,21 @@ function ChatAppContent() {
               try {
                 const parsedData = JSON.parse(dataText);
 
-                if (eventType === "books") {
+                if (eventType === "context") {
+                  latestContext = parsedData as ReaderContext;
+                  setCurrentContext(latestContext);
+                  if (!currentProfile && latestContext) {
+                    setCurrentProfile({
+                      genres: latestContext.genres.slice(0, 2),
+                      level: latestContext.level,
+                      length: "any",
+                      plot: "any",
+                      moods: latestContext.moods.slice(0, 3) as any,
+                      heatLevel: latestContext.heatLevel,
+                      pastReads: latestContext.similarTo,
+                    });
+                  }
+                } else if (eventType === "books") {
                   latestBooks = parsedData as Book[];
                   setBooks(latestBooks);
                 } else if (eventType === "ladder") {
@@ -361,6 +392,8 @@ function ChatAppContent() {
                     genre: payload.genre,
                     level: payload.level,
                     notice: latestNotice,
+                    profile: effectiveProfile,
+                    context: latestContext,
                     books: latestBooks,
                     ladder: latestLadder,
                     explanation: accumulatedText,
@@ -549,25 +582,68 @@ function ChatAppContent() {
               </div>
             )}
 
-            {/* Empty Greeting State */}
-            {turns.length === 0 && !isLoading && !isStreaming && !currentPrompt && (
-              <div className="py-12 text-center space-y-6 max-w-xl mx-auto">
-                <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                  <Sparkles size={24} />
+            {/* Active Profile Summary Bar & Edit form */}
+            {currentProfile && !isEditingProfile && (
+              <ProfileSummaryBar
+                profile={currentProfile}
+                onEdit={() => setIsEditingProfile(true)}
+              />
+            )}
+
+            {isEditingProfile && (
+              <div className="p-4 rounded-2xl border border-border bg-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground text-sm">Edit Reading Profile</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <div className="space-y-2">
+                <ReaderProfileForm
+                  initialProfile={currentProfile ?? undefined}
+                  initialMessage={inputMessage}
+                  onSubmit={({ profile, message }) => {
+                    setCurrentProfile(profile);
+                    setIsEditingProfile(false);
+                    handleRecommend({ message, profile });
+                  }}
+                  isLoading={isLoading || isStreaming}
+                  onCancelEdit={() => setIsEditingProfile(false)}
+                />
+              </div>
+            )}
+
+            {/* Empty Greeting State */}
+            {turns.length === 0 && !isLoading && !isStreaming && !currentPrompt && !currentProfile && !isEditingProfile && (
+              <div className="py-6 space-y-6 max-w-2xl mx-auto">
+                <div className="text-center space-y-2">
+                  <div className="size-10 mx-auto rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Sparkles size={20} />
+                  </div>
                   <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                    What would you like to read next?
+                    Build Your Reading Profile
                   </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-                    Ask any question about books, describe a premise or tone, or explore recommendations
-                    grounded in verified metadata and progressive reading ladders.
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Answer 3 quick questions so we can match books to your exact reading level, length, and taste.
                   </p>
                 </div>
 
-                <div className="pt-2 space-y-2">
+                <ReaderProfileForm
+                  initialMessage={inputMessage}
+                  onSubmit={({ profile, message }) => {
+                    setCurrentProfile(profile);
+                    setIsEditingProfile(false);
+                    handleRecommend({ message, profile });
+                  }}
+                  isLoading={isLoading || isStreaming}
+                />
+
+                <div className="pt-2 space-y-2 text-center">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Try a popular prompt:
+                    Or try a popular prompt:
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {CHAT_QUICK_PROMPTS.map((p) => (
@@ -614,6 +690,35 @@ function ChatAppContent() {
                   </div>
                 )}
 
+                {/* Genre Inference Card if inferred */}
+                {turn.context?.genreSource === "inferred" && turn.context.genres[0] && (
+                  <GenreInferenceCard
+                    genre={turn.context.genres[0]}
+                    confidence={turn.context.genreConfidence}
+                    reasons={turn.context.inferenceReasons}
+                    candidates={turn.context.candidateGenres}
+                    onChangeGenre={(newGenre) => {
+                      const updated = {
+                        ...(turn.profile || currentProfile || {
+                          genres: [],
+                          level: "beginner" as const,
+                          length: "any" as const,
+                          plot: "any" as const,
+                          moods: [],
+                          heatLevel: "any" as const,
+                          pastReads: [],
+                        }),
+                        genres: [newGenre],
+                      };
+                      setCurrentProfile(updated);
+                      void handleRecommend({
+                        message: turn.userMessage,
+                        profile: updated,
+                      });
+                    }}
+                  />
+                )}
+
                 {/* Assistant Explanation */}
                 {turn.explanation && (
                   <ChatStream content={turn.explanation} isStreaming={false} error={null} />
@@ -638,6 +743,37 @@ function ChatAppContent() {
                         <BookCard key={b.id || bIdx} book={b} index={bIdx} />
                       ))}
                     </div>
+
+                    {/* Thin results relaxing action */}
+                    {turn.books.length < 3 && (
+                      <div className="p-3.5 rounded-xl border border-border bg-secondary/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            Only {turn.books.length} {turn.books.length === 1 ? "book" : "books"} matched your strict criteria.
+                          </p>
+                          <p className="text-muted-foreground mt-0.5">
+                            Relax your page length or plot preferences to see more titles.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const baseProfile = turn.profile || currentProfile;
+                            if (baseProfile) {
+                              const relaxed = { ...baseProfile, length: "any" as const, plot: "any" as const };
+                              setCurrentProfile(relaxed);
+                              void handleRecommend({
+                                message: "Show more books with relaxed page count and complexity",
+                                profile: relaxed,
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shrink-0 cursor-pointer text-center"
+                        >
+                          Show books up to 350+ pages
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -685,6 +821,26 @@ function ChatAppContent() {
                   </div>
                 )}
 
+                {/* Genre Inference Card if inferred */}
+                {currentContext?.genreSource === "inferred" && currentContext.genres[0] && (
+                  <GenreInferenceCard
+                    genre={currentContext.genres[0]}
+                    confidence={currentContext.genreConfidence}
+                    reasons={currentContext.inferenceReasons}
+                    candidates={currentContext.candidateGenres}
+                    onChangeGenre={(newGenre) => {
+                      if (currentProfile) {
+                        const updated = { ...currentProfile, genres: [newGenre] };
+                        setCurrentProfile(updated);
+                        void handleRecommend({
+                          message: currentPrompt?.message || "",
+                          profile: updated,
+                        });
+                      }
+                    }}
+                  />
+                )}
+
                 {streamText && (
                   <ChatStream content={streamText} isStreaming={isStreaming} error={error} />
                 )}
@@ -707,6 +863,36 @@ function ChatAppContent() {
                         <BookCard key={b.id || bIdx} book={b} index={bIdx} />
                       ))}
                     </div>
+
+                    {/* Thin results relaxing action */}
+                    {books.length < 3 && !isStreaming && (
+                      <div className="p-3.5 rounded-xl border border-border bg-secondary/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            Only {books.length} {books.length === 1 ? "book" : "books"} matched your strict criteria.
+                          </p>
+                          <p className="text-muted-foreground mt-0.5">
+                            Relax your page length or plot preferences to see more titles.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (currentProfile) {
+                              const relaxed = { ...currentProfile, length: "any" as const, plot: "any" as const };
+                              setCurrentProfile(relaxed);
+                              void handleRecommend({
+                                message: "Show more books with relaxed page count and complexity",
+                                profile: relaxed,
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shrink-0 cursor-pointer text-center"
+                        >
+                          Show books up to 350+ pages
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

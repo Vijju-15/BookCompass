@@ -5,6 +5,7 @@ import {
   type Level,
   type ReaderProfile,
   type PastRead,
+  type ReaderContext,
 } from "@/lib/schemas";
 import { LENGTH_RANGES, PLOT_TO_COMPLEXITY } from "@/lib/profile/mapping";
 import { resolveGenre, type GenreResolution } from "@/lib/profile/genreResolver";
@@ -12,26 +13,7 @@ import { extractNotes, type ExtractedNotes } from "@/lib/chains/extractNotes";
 import { getEmbeddingsModel } from "@/lib/llm";
 import { cosineSimilarity } from "@/lib/scoring/score";
 
-export interface ReaderContext {
-  genres: Genre[];
-  genreSource: "form" | "message" | "inferred";
-  genreConfidence: number;
-  level: Level;
-  length: { min: number; max: number } | null;
-  complexityRange: [number, number] | null;
-  moods: string[];
-  subGenres: string[];
-  heatLevel: "clean" | "mild" | "steamy" | "any";
-  avoid: string[];
-  similarTo: PastRead[];
-  dislikedAuthors: string[];
-  excludeBookIds: string[];
-  targetBookQuery: string | null;
-  overrides: { field: string; from: string; to: string; cue: string }[];
-  inferenceReasons: string[];
-  candidateGenres?: { genre: Genre; confidence: number }[];
-  tasteVector?: number[] | null;
-}
+export type { ReaderContext };
 
 export async function buildReaderContext(
   profile: ReaderProfile | null | undefined,

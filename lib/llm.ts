@@ -20,6 +20,8 @@ export function getChatModel(options?: {
   });
 }
 
+export const getLLM = getChatModel;
+
 /**
  * Gemini embeddings model — used for semantic search.
  * Dimension MUST match the vector(768) in schema.sql.

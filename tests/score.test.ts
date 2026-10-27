@@ -214,7 +214,7 @@ describe("maximalMarginalRelevance", () => {
       { id: "1", score: 0.9 },
       { id: "2", score: 0.8 },
     ];
-    expect(maximalMarginalRelevance(items, 3)).toHaveLength(2);
+    expect(maximalMarginalRelevance(items as any, 3)).toHaveLength(2);
   });
 
   it("diversifies candidates and does not blindly take top 2 identical items", () => {
@@ -223,7 +223,7 @@ describe("maximalMarginalRelevance", () => {
       { id: "2", score: 0.94, author: "Author A", genres: ["romance"], embedding: [0.99, 0.01] },
       { id: "3", score: 0.88, author: "Author B", genres: ["rom-com"], embedding: [0, 1] },
     ];
-    const picked = maximalMarginalRelevance(items, 2, 0.7);
+    const picked = maximalMarginalRelevance(items as any, 2, 0.7);
     expect(picked).toHaveLength(2);
     expect(picked[0].id).toBe("1");
     // Picked item 2 should be item 3 because item 2 has near 1.0 similarity with item 1

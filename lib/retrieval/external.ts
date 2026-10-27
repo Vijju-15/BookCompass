@@ -330,10 +330,17 @@ async function batchTagAndEnrich(
     description: c.description ? c.description.slice(0, 300) : "No description",
   }));
 
-  let taggedData: z.infer<typeof BatchTaggingSchema>["tags"] = [];
+  let taggedData: Array<{
+    index: number;
+    level: "beginner" | "intermediate" | "advanced";
+    complexity: number;
+    pacing: "slow" | "medium" | "fast";
+    tone: string[];
+    heatLevel?: "clean" | "mild" | "steamy" | "unknown";
+  }> = [];
 
   try {
-    const model = getLLM(0.1);
+    const model = getLLM({ temperature: 0.1 });
     const structuredModel = model.withStructuredOutput(BatchTaggingSchema);
 
     const prompt = `Tag these books with level, complexity, pacing, tone, and heatLevel based strictly on their description and page count:

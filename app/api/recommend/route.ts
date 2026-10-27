@@ -45,8 +45,16 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ??
       "anonymous";
 
+    // Authenticate user via Supabase server client
+    const serverSupabase = await createServerSupabase();
+    const {
+      data: { user },
+    } = await serverSupabase.auth.getUser();
+    const targetUserId = user?.id || null;
+
     // Check rate limit
-    const rateLimit = await checkRateLimit(ip);
+    const rateLimitKey = targetUserId ? `user:${targetUserId}` : ip;
+    const rateLimit = await checkRateLimit(rateLimitKey);
     if (!rateLimit.allowed) {
       return new Response(
         JSON.stringify({
@@ -90,6 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { profile, message, genre, level, email, chatId, excludeBookIds = [] } = parsed.data;
+    const targetEmail = user?.email || (email ? email.toLowerCase().trim() : null);
 
     // Stage 1: Raw request
     debugStages.stage1_rawRequest = { profile, message, genre, level, email, chatId, excludeBookIds };
@@ -100,25 +109,47 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Stage 2 & 3: Parse user preferences
-          let parseSuccess = true;
-          let parsedPrefResult;
-          try {
-            parsedPrefResult = await parsePreferences(message, genre, level);
-          } catch (pErr: unknown) {
-            parseSuccess = false;
-            console.error("[STAGE 2: Preference parsing error]", pErr);
-            throw pErr;
+          // Stage 2 & 3: Build ReaderContext from questionnaire profile + user prompt (Workstream B)
+          const effectiveProfile = profile || {
+            genres: genre ? [genre] : [],
+            level: level || "beginner",
+            length: "any" as const,
+            plot: "any" as const,
+            moods: [],
+            heatLevel: "any" as const,
+            pastReads: [],
+          };
+
+          const readerContext = await buildReaderContext(effectiveProfile, message, excludeBookIds);
+
+          // Stream context immediately so UI gets inference and overrides
+          controller.enqueue(encoder.encode(formatSSE("context", readerContext)));
+
+          const preferences = {
+            genres: readerContext.genres,
+            subGenres: readerContext.subGenres,
+            level: readerContext.level,
+            heatLevel: readerContext.heatLevel !== "any" ? readerContext.heatLevel : null,
+            maxPages: readerContext.length ? readerContext.length.max : null,
+            mood: readerContext.moods,
+            similarTo: readerContext.similarTo.map((pr) => pr.title),
+            avoid: readerContext.avoid,
+            targetBookQuery: readerContext.targetBookQuery || undefined,
+          };
+
+          let notice: string | null = null;
+          if (readerContext.overrides.length > 0) {
+            notice = readerContext.overrides
+              .map((o) => `Using ${o.to} from your message instead of ${o.from}.`)
+              .join(" ");
           }
 
-          const { preferences, levelSource, notice } = parsedPrefResult;
           debugStages.stage2_parsedPreferences = {
+            readerContext,
             preferences,
-            parseSucceeded: parseSuccess,
-            levelSource,
           };
           debugStages.stage3_finalMergedPreferences = { ...preferences };
-          console.log("[STAGE 2: Parsed Preferences]", debugStages.stage2_parsedPreferences);
+          console.log("[STAGE 2: Reader Context]", debugStages.stage2_parsedPreferences);
           console.log("[STAGE 3: Merged Preferences]", debugStages.stage3_finalMergedPreferences);
 
           // Stage 4: Candidate retrieval
@@ -149,19 +180,21 @@ export async function POST(request: NextRequest) {
           }
 
           // Stage 5: Per-candidate score breakdown with real semantic similarity & MMR diversity
-          let queryEmbedding: number[] | null = null;
-          try {
-            const embeddings = getEmbeddingsModel();
-            const queryParts = [
-              message,
-              preferences.genres.join(" "),
-              (preferences.subGenres || []).join(" "),
-              (preferences.mood || []).join(" "),
-              (preferences.similarTo || []).join(" "),
-            ].filter(Boolean);
-            queryEmbedding = await embeddings.embedQuery(queryParts.join(" "));
-          } catch (embedErr) {
-            console.warn("[STAGE 5: Query embedding failed, using fallback similarity]", embedErr);
+          let queryEmbedding: number[] | null = readerContext.tasteVector ?? null;
+          if (!queryEmbedding) {
+            try {
+              const embeddings = getEmbeddingsModel();
+              const queryParts = [
+                message,
+                preferences.genres.join(" "),
+                (preferences.subGenres || []).join(" "),
+                (preferences.mood || []).join(" "),
+                (preferences.similarTo || []).join(" "),
+              ].filter(Boolean);
+              queryEmbedding = await embeddings.embedQuery(queryParts.join(" "));
+            } catch (embedErr) {
+              console.warn("[STAGE 5: Query embedding failed, using fallback similarity]", embedErr);
+            }
           }
 
           const scoredCandidates: Book[] = candidates.map((book) => {
@@ -179,20 +212,32 @@ export async function POST(request: NextRequest) {
             }
 
             const isExcluded = excludeBookIds.includes(book.id);
+            const isDislikedAuthor = Boolean(
+              book.author && readerContext.dislikedAuthors.includes(book.author.toLowerCase().trim())
+            );
+            const isConfirmedBothSources = Boolean(
+              book.sources?.includes("google") && book.sources?.includes("openlibrary")
+            );
+
             const input: ScoringInput = {
               bookLevel: book.level,
               bookGenres: book.genres,
               bookPageCount: book.pageCount,
               bookAvgRating: book.avgRating,
               bookTone: book.tone,
+              bookComplexity: book.complexity,
               semanticSimilarity,
-              targetLevel: preferences.level,
-              targetGenres: preferences.genres,
-              avoidList: preferences.avoid,
-              targetSubGenres: preferences.subGenres,
-              targetMood: preferences.mood,
-              heatLevel: preferences.heatLevel,
+              targetLevel: readerContext.level,
+              targetGenres: readerContext.genres,
+              avoidList: readerContext.avoid,
+              targetSubGenres: readerContext.subGenres,
+              targetMood: readerContext.moods,
+              targetComplexityRange: readerContext.complexityRange,
+              targetLengthRange: readerContext.length,
+              heatLevel: readerContext.heatLevel,
               isExcluded,
+              isDislikedAuthor,
+              isConfirmedBothSources,
             };
             const breakdown = scoreBookDetailed(input);
             let score = breakdown.total;
@@ -297,21 +342,23 @@ export async function POST(request: NextRequest) {
             controller.enqueue(encoder.encode(formatSSE("text", chunk)));
           }
 
-          // Save chat session if user is logged in with an email
-          if (email) {
+          // Save chat session if user is logged in
+          if (targetEmail || targetUserId) {
             try {
               const chatTitle =
                 preferences.targetBookQuery
                   ? `About "${preferences.targetBookQuery}"`
                   : message.length > 40
                   ? message.slice(0, 37) + "..."
-                  : message;
+                  : message || `${primaryGenre.replace("-", " ")} recommendations`;
 
               const currentTurn = {
                 id: crypto.randomUUID(),
                 userMessage: message,
                 genre: primaryGenre,
                 level: preferences.level,
+                profile: effectiveProfile,
+                context: readerContext,
                 books: scoredBooks,
                 ladder: ladderSteps,
                 explanation: fullExplanation,
@@ -320,12 +367,16 @@ export async function POST(request: NextRequest) {
 
               if (chatId) {
                 // Fetch previous turns to extend the conversation rather than overwriting
-                const { data: existingChat } = await supabase
+                let query = supabase
                   .from("user_chats")
                   .select("messages, user_message, books, ladder, explanation, created_at, genre, level")
-                  .eq("id", chatId)
-                  .eq("email", email.toLowerCase().trim())
-                  .single();
+                  .eq("id", chatId);
+                if (targetUserId) {
+                  query = query.eq("user_id", targetUserId);
+                } else if (targetEmail) {
+                  query = query.eq("email", targetEmail.toLowerCase().trim());
+                }
+                const { data: existingChat } = await query.single();
 
                 let turns: Record<string, unknown>[] = [];
                 if (
@@ -356,7 +407,7 @@ export async function POST(request: NextRequest) {
                   turns = turns.slice(-6);
                 }
 
-                const { error: updateError } = await supabase
+                let updateQuery = supabase
                   .from("user_chats")
                   .update({
                     user_message: message,
@@ -366,12 +417,17 @@ export async function POST(request: NextRequest) {
                     messages: turns,
                     updated_at: new Date().toISOString(),
                   })
-                  .eq("id", chatId)
-                  .eq("email", email.toLowerCase().trim());
+                  .eq("id", chatId);
+                if (targetUserId) {
+                  updateQuery = updateQuery.eq("user_id", targetUserId);
+                } else if (targetEmail) {
+                  updateQuery = updateQuery.eq("email", targetEmail.toLowerCase().trim());
+                }
+                const { error: updateError } = await updateQuery;
 
                 if (updateError) {
                   // Fallback without messages column if schema not yet migrated
-                  await supabase
+                  let fallbackUpdate = supabase
                     .from("user_chats")
                     .update({
                       user_message: message,
@@ -380,15 +436,20 @@ export async function POST(request: NextRequest) {
                       explanation: fullExplanation,
                       updated_at: new Date().toISOString(),
                     })
-                    .eq("id", chatId)
-                    .eq("email", email.toLowerCase().trim());
+                    .eq("id", chatId);
+                  if (targetUserId) {
+                    fallbackUpdate = fallbackUpdate.eq("user_id", targetUserId);
+                  } else if (targetEmail) {
+                    fallbackUpdate = fallbackUpdate.eq("email", targetEmail.toLowerCase().trim());
+                  }
+                  await fallbackUpdate;
                 }
               } else {
                 const { data: savedChat, error: insertError } = await supabase
                   .from("user_chats")
                   .insert({
                     email: targetEmail ? targetEmail.toLowerCase().trim() : null,
-                      user_id: targetUserId || null,
+                    user_id: targetUserId || null,
                     title: chatTitle,
                     genre: primaryGenre,
                     level: preferences.level,
@@ -408,7 +469,8 @@ export async function POST(request: NextRequest) {
                   const { data: fallbackChat } = await supabase
                     .from("user_chats")
                     .insert({
-                      email: email.toLowerCase().trim(),
+                      email: targetEmail ? targetEmail.toLowerCase().trim() : null,
+                      user_id: targetUserId || null,
                       title: chatTitle,
                       genre: primaryGenre,
                       level: preferences.level,

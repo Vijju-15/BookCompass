@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         if (gbRes.status === "fulfilled" && Array.isArray(gbRes.value)) {
           for (const b of gbRes.value) {
             addSuggestion({
-              id: b.id || b.google_books_id,
+              id: b.id || (b as { google_books_id?: string }).google_books_id,
               title: b.title,
               author: b.author,
               coverUrl: b.coverUrl,
@@ -121,6 +121,9 @@ export async function GET(request: NextRequest) {
       books: suggestions.slice(0, 8),
     });
   } catch (error) {
+    if ((error as { digest?: string })?.digest?.startsWith("NEXT_")) {
+      throw error;
+    }
     console.error("Books suggest error:", error);
     return NextResponse.json({ books: [] });
   }

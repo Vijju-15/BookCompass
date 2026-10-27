@@ -80,6 +80,27 @@ export const ReaderProfileSchema = z.object({
 
 export type ReaderProfile = z.infer<typeof ReaderProfileSchema>;
 
+export interface ReaderContext {
+  genres: Genre[];
+  genreSource: "form" | "message" | "inferred";
+  genreConfidence: number;
+  level: Level;
+  length: { min: number; max: number } | null;
+  complexityRange: [number, number] | null;
+  moods: string[];
+  subGenres: string[];
+  heatLevel: "clean" | "mild" | "steamy" | "any";
+  avoid: string[];
+  similarTo: PastRead[];
+  dislikedAuthors: string[];
+  excludeBookIds: string[];
+  targetBookQuery: string | null;
+  overrides: { field: string; from: string; to: string; cue: string }[];
+  inferenceReasons: string[];
+  candidateGenres?: { genre: Genre; confidence: number }[];
+  tasteVector?: number[] | null;
+}
+
 /** Schema for the recommendation request body */
 export const RecommendRequestSchema = z
   .object({
@@ -199,6 +220,7 @@ export type StreamEvent =
   | { type: "books"; data: Book[] }
   | { type: "ladder"; data: LadderStep[] }
   | { type: "notice"; data: string }
+  | { type: "context"; data: ReaderContext }
   | { type: "explanation"; data: ExplanationResponse }
   | { type: "text"; data: string }
   | { type: "chatId"; data: string }

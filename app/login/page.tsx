@@ -236,7 +236,7 @@ export default function LoginPage() {
             Privacy Policy
           </Link>
         </div>
-        <p>&copy; {new Date().getFullYear()} BookCompass AI. All rights reserved.</p>
+        <p>&copy; 2026 BookCompass AI. All rights reserved.</p>
       </footer>
     </div>
   );

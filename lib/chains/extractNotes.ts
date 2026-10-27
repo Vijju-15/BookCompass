@@ -53,7 +53,7 @@ export async function extractNotes(
   }
 
   try {
-    const model = getLLM(0.1);
+    const model = getLLM({ temperature: 0.1 });
     const structuredModel = model.withStructuredOutput(ExtractedNotesSchema);
 
     const prompt = `You read a short free-text note from a reader and extract extra preferences.
