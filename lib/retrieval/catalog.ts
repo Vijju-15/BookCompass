@@ -3,6 +3,7 @@ import "server-only";
 import { supabase, type BookRow } from "@/lib/db/supabase";
 import { getEmbeddingsModel, getChatModel } from "@/lib/llm";
 import { searchGoogleBooks } from "@/lib/retrieval/googleBooks";
+import { fetchDualSourceCandidates } from "@/lib/retrieval/external";
 import type { Preferences, Book, Level } from "@/lib/schemas";
 import { amazonSearchUrl } from "@/lib/utils";
 import { z } from "zod";
