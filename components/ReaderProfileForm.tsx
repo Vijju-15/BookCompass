@@ -91,13 +91,6 @@ const PLOT_OPTIONS = [
   { value: "any", title: "No Preference", desc: "Open to any narrative style." },
 ] as const;
 
-const STEAM_OPTIONS = [
-  { value: "clean", label: "Clean" },
-  { value: "mild", label: "Mild" },
-  { value: "steamy", label: "Steamy" },
-  { value: "any", label: "No preference" },
-] as const;
-
 export function ReaderProfileForm({
   initialProfile,
   initialMessage = "",
@@ -129,11 +122,6 @@ export function ReaderProfileForm({
   // Q5: Mood (up to 3)
   const [selectedMoods, setSelectedMoods] = useState<Mood[]>(
     initialProfile?.moods || []
-  );
-
-  // Conditional Steaminess for Romance
-  const [heatLevel, setHeatLevel] = useState<"clean" | "mild" | "steamy" | "any">(
-    initialProfile?.heatLevel || "any"
   );
 
   // Q6: Past reads
@@ -265,14 +253,11 @@ export function ReaderProfileForm({
       length,
       plot,
       moods: selectedMoods,
-      heatLevel: selectedGenres.includes("romance") ? heatLevel : "any",
-      pastReads: hasPastReads ? pastReads : [],
+      heatLevel: "any",      pastReads: hasPastReads ? pastReads : [],
     };
 
     onSubmit({ profile, message: message.trim() });
   };
-
-  const isRomanceSelected = selectedGenres.includes("romance");
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-6 text-foreground">
@@ -475,35 +460,6 @@ export function ReaderProfileForm({
             })}
           </div>
         </div>
-
-        {/* Conditional Steaminess (Only when Romance is selected) */}
-        {isRomanceSelected && (
-          <div className="space-y-2.5 sm:col-span-2 p-3.5 rounded-xl bg-secondary/50 border border-border">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-              Romance Heat Level
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {STEAM_OPTIONS.map((opt) => {
-                const selected = heatLevel === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setHeatLevel(opt.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                        : "bg-card text-card-foreground border-border hover:bg-muted"
-                    }`}
-                  >
-                    {selected && <Check size={12} className="stroke-[3]" />}
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Q6: Past Reads */}
         <div className="space-y-3 sm:col-span-2 border-t border-border/60 pt-4">

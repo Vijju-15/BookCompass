@@ -46,10 +46,6 @@ export function ProfileSummaryBar({ profile, onEdit }: ProfileSummaryBarProps) {
     parts.push(profile.moods.slice(0, 2).join(", "));
   }
 
-  if (profile.heatLevel && profile.heatLevel !== "any") {
-    parts.push(`${profile.heatLevel} romance`);
-  }
-
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border bg-card shadow-xs text-xs">
       <div className="flex items-center gap-2 min-w-0">
