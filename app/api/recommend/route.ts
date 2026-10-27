@@ -13,6 +13,7 @@ import { getEmbeddingsModel } from "@/lib/llm";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { formatSSE } from "@/lib/utils";
 import { supabase } from "@/lib/db/supabase";
+import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import type { Book } from "@/lib/schemas";
 import type { RetrievalStats } from "@/lib/retrieval/catalog";
 
@@ -383,7 +384,8 @@ export async function POST(request: NextRequest) {
                 const { data: savedChat, error: insertError } = await supabase
                   .from("user_chats")
                   .insert({
-                    email: email.toLowerCase().trim(),
+                    email: targetEmail ? targetEmail.toLowerCase().trim() : null,
+                      user_id: targetUserId || null,
                     title: chatTitle,
                     genre: primaryGenre,
                     level: preferences.level,
