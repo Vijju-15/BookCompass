@@ -21,6 +21,9 @@ import { BookCard, BookCardSkeleton } from "@/components/BookCard";
 import { ReadingLadder } from "@/components/ReadingLadder";
 import { ChatStream } from "@/components/ChatStream";
 import { ChatSidebar, type UserChat, type ChatTurn } from "@/components/ChatSidebar";
+import { ReaderProfileForm } from "@/components/ReaderProfileForm";
+import { ProfileSummaryBar } from "@/components/ProfileSummaryBar";
+import type { ReaderProfile } from "@/lib/schemas";
 import type { Book, LadderStep, Genre, Level } from "@/lib/schemas";
 
 function subscribeToEmail(callback: () => void) {
@@ -112,6 +115,8 @@ function ChatAppContent() {
     };
   }, [supabase]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<ReaderProfile | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [chatHistory, setChatHistory] = useState<UserChat[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -247,7 +252,7 @@ function ChatAppContent() {
   };
 
   const handleRecommend = useCallback(
-    async (payload: { message: string; genre?: Genre; level?: Level }) => {
+    async (payload: { message: string; genre?: Genre; level?: Level; profile?: ReaderProfile }) => {
       setIsLoading(true);
       setIsStreaming(true);
       setError(null);
