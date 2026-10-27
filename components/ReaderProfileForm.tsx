@@ -253,7 +253,8 @@ export function ReaderProfileForm({
       length,
       plot,
       moods: selectedMoods,
-      heatLevel: "any",      pastReads: hasPastReads ? pastReads : [],
+      heatLevel: "any",
+      pastReads: hasPastReads ? pastReads : [],
     };
 
     onSubmit({ profile, message: message.trim() });
