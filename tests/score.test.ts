@@ -92,7 +92,7 @@ describe("scoreRating", () => {
   });
 
   it("returns 0.5 for null", () => {
-    expect(scoreRating(null)).toBe(0.5);
+    expect(scoreRating(null)).toBe(0.6);
   });
 });
 
@@ -174,10 +174,15 @@ describe("scoreBook", () => {
     expect(sum).toBeCloseTo(1.0);
   });
 
-  it("penalizes previously seen books with isExcluded", () => {
+  it("penalizes previously seen books with seenEarlierInChat", () => {
     const normal = scoreBook(baseInput);
+    const seen = scoreBook({ ...baseInput, seenEarlierInChat: true });
+    expect(seen).toBe(Math.max(0, normal - 0.5));
+  });
+
+  it("strictly excludes books with isExcluded (score = 0.0)", () => {
     const excluded = scoreBook({ ...baseInput, isExcluded: true });
-    expect(excluded).toBe(Math.max(0, normal - 0.5));
+    expect(excluded).toBe(0.0);
   });
 });
 

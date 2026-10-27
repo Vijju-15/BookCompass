@@ -52,16 +52,12 @@ function normalizeTitleAuthorKey(title: string, author: string): string {
   const cleanTitle = (title || "")
     .toLowerCase()
     .split(":")[0]
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[^a-z0-9]/g, "");
 
   const cleanAuthor = (author || "")
     .toLowerCase()
     .split(",")[0]
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[^a-z0-9]/g, "");
 
   return `${cleanTitle}|${cleanAuthor}`;
 }

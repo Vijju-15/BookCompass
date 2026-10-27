@@ -41,6 +41,7 @@ export interface ScoringInput {
   targetLengthRange?: { min: number; max: number } | null;
   heatLevel?: string | null;
   isExcluded?: boolean;
+  seenEarlierInChat?: boolean;
   isDislikedAuthor?: boolean;
   isConfirmedBothSources?: boolean;
 }
@@ -131,8 +132,8 @@ export function scoreLengthFit(
  * Normalize a book's average rating to 0-1 scale (R).
  * Verified rating / 5. Missing rating scores neutral 0.5 or 0.6.
  */
-export function scoreRating(avgRating: number | null): number {
-  if (avgRating === null || avgRating === undefined) return 0.5;
+export function scoreRating(avgRating?: number | null): number {
+  if (avgRating === null || avgRating === undefined) return 0.6;
   return clamp(avgRating / 5.0, 0, 1);
 }
 
@@ -252,8 +253,12 @@ export function scoreBookDetailed(input: ScoringInput): ScoreBreakdown {
     total = Math.min(1.0, total + 0.03);
   }
 
-  if (input.isExcluded) {
+  if (input.seenEarlierInChat) {
     total = Math.max(0, total - 0.5);
+  }
+
+  if (input.isExcluded) {
+    total = 0.0;
   }
 
   return {
