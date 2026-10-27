@@ -4,14 +4,16 @@ import { z } from "zod";
 export const GENRES = [
   "romance",
   "thriller",
-  "horror",
-  "action/adventure",
   "mystery",
-  "sci-fi",
+  "horror",
   "fantasy",
-  "motivational/self-help",
-  "non-fiction",
+  "sci-fi",
+  "action-adventure",
+  "action/adventure",
   "classics",
+  "non-fiction",
+  "self-help",
+  "motivational/self-help",
 ] as const;
 
 export type Genre = (typeof GENRES)[number];
@@ -20,8 +22,19 @@ export type Genre = (typeof GENRES)[number];
 export const LEVELS = ["beginner", "intermediate", "advanced"] as const;
 export type Level = (typeof LEVELS)[number];
 
-export const HEAT_LEVELS = ["clean", "mild", "steamy"] as const;
+export const HEAT_LEVELS = ["clean", "mild", "steamy", "any"] as const;
 export type HeatLevel = (typeof HEAT_LEVELS)[number];
+
+export const MOODS = [
+  "light-hearted",
+  "emotional",
+  "dark",
+  "suspenseful",
+  "inspiring",
+  "thought-provoking",
+  "funny",
+] as const;
+export type Mood = (typeof MOODS)[number];
 
 export type LevelSource = "message" | "ui" | "default";
 
@@ -30,57 +43,98 @@ export const PreferencesSchema = z.object({
   genres: z.array(z.enum(GENRES)).min(1),
   subGenres: z.array(z.string()).default([]),
   level: z.enum(LEVELS).default("beginner"),
-  heatLevel: z.enum(HEAT_LEVELS).nullable().optional(),
+  heatLevel: z.enum(["clean", "mild", "steamy"]).nullable().optional(),
   maxPages: z.number().int().min(1).nullable().optional(),
   mood: z.array(z.string()).default([]),
   similarTo: z.array(z.string()).default([]),
   avoid: z.array(z.string()).default([]),
-  targetBookQuery: z.string().optional().describe("If the user is asking about a specific book or title (e.g. 'The Notebook'), extract the book title here"),
+  targetBookQuery: z
+    .string()
+    .optional()
+    .describe("If the user is asking about a specific book or title (e.g. 'The Notebook'), extract the book title here"),
 });
 
 export type Preferences = z.infer<typeof PreferencesSchema>;
 
-/** Schema for the recommendation request body */
-export const RecommendRequestSchema = z.object({
-  message: z
-    .string()
-    .trim()
-    .min(1, "Please enter a question or description of what you'd like to read.")
-    .max(4000, "Message is too long (maximum 4000 characters)."),
-  genre: z
-    .enum(GENRES)
-    .optional()
-    .nullable()
-    .or(z.literal(""))
-    .or(z.literal("any"))
-    .transform((val) => (val && typeof val === "string" && val.trim() && val.trim().toLowerCase() !== "any" ? (val as Genre) : undefined)),
-  level: z
-    .enum(LEVELS)
-    .optional()
-    .nullable()
-    .or(z.literal(""))
-    .or(z.literal("any"))
-    .transform((val) => (val && typeof val === "string" && val.trim() && val.trim().toLowerCase() !== "any" ? (val as Level) : undefined)),
-  email: z
-    .string()
-    .trim()
-    .email("Please provide a valid email address.")
-    .optional()
-    .nullable()
-    .or(z.literal(""))
-    .transform((val) => (val && typeof val === "string" && val.trim() ? val.trim().toLowerCase() : undefined)),
-  chatId: z
-    .string()
-    .uuid("Invalid chat identifier format.")
-    .optional()
-    .nullable()
-    .or(z.literal(""))
-    .transform((val) => (val && typeof val === "string" && val.trim() ? val.trim() : undefined)),
-  excludeBookIds: z
-    .array(z.string())
-    .optional()
-    .default([]),
+/** Past read item */
+export const PastReadSchema = z.object({
+  bookId: z.string().optional(),
+  googleBooksId: z.string().optional(),
+  title: z.string().min(1).max(200),
+  author: z.string().min(1).max(200),
+  opinion: z.enum(["loved", "okay", "disliked"]).default("loved"),
 });
+
+export type PastRead = z.infer<typeof PastReadSchema>;
+
+/** Reader profile collected via the questionnaire (Workstream A) */
+export const ReaderProfileSchema = z.object({
+  genres: z.array(z.enum(GENRES)).max(2).default([]),
+  level: z.enum(LEVELS),
+  length: z.enum(["short", "medium", "long", "epic", "any"]).default("any"),
+  plot: z.enum(["simple", "twisty", "layered", "any"]).default("any"),
+  moods: z.array(z.enum(MOODS)).max(3).default([]),
+  heatLevel: z.enum(["clean", "mild", "steamy", "any"]).default("any"),
+  pastReads: z.array(PastReadSchema).max(5).default([]),
+});
+
+export type ReaderProfile = z.infer<typeof ReaderProfileSchema>;
+
+/** Schema for the recommendation request body */
+export const RecommendRequestSchema = z
+  .object({
+    profile: ReaderProfileSchema.optional(),
+    message: z.string().max(4000).default(""),
+    genre: z
+      .enum(GENRES)
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .or(z.literal("any"))
+      .transform((val) =>
+        val && typeof val === "string" && val.trim() && val.trim().toLowerCase() !== "any"
+          ? (val as Genre)
+          : undefined
+      ),
+    level: z
+      .enum(LEVELS)
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .or(z.literal("any"))
+      .transform((val) =>
+        val && typeof val === "string" && val.trim() && val.trim().toLowerCase() !== "any"
+          ? (val as Level)
+          : undefined
+      ),
+    email: z
+      .string()
+      .trim()
+      .email("Please provide a valid email address.")
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .transform((val) =>
+        val && typeof val === "string" && val.trim() ? val.trim().toLowerCase() : undefined
+      ),
+    chatId: z
+      .string()
+      .uuid("Invalid chat identifier format.")
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .transform((val) =>
+        val && typeof val === "string" && val.trim() ? val.trim() : undefined
+      ),
+    excludeBookIds: z.array(z.string()).optional().default([]),
+  })
+  .refine(
+    (v) =>
+      (v.profile && (v.profile.genres.length > 0 || v.profile.moods.length > 0)) ||
+      v.message.trim().length > 0 ||
+      Boolean(v.genre),
+    { message: "Pick a genre, pick a mood, or describe what you want." }
+  );
 
 export type RecommendRequest = z.infer<typeof RecommendRequestSchema>;
 
@@ -105,6 +159,8 @@ export const BookSchema = z.object({
   whyItFits: z.string().optional(),
   whyThisLevel: z.string().optional(),
   watchOut: z.string().nullable().optional(),
+  sources: z.array(z.string()).optional(),
+  matchFacts: z.array(z.string()).optional(),
 });
 
 export type Book = z.infer<typeof BookSchema>;
