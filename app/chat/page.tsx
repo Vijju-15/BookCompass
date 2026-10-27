@@ -16,7 +16,7 @@ import {
   Info,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeProvider";
-import { createClient } from "@/lib/supabase/client";
+
 import { BookCard, BookCardSkeleton } from "@/components/BookCard";
 import { ReadingLadder } from "@/components/ReadingLadder";
 import { ChatStream } from "@/components/ChatStream";
@@ -92,29 +92,7 @@ function ChatAppContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [supabase] = useState(() => createClient());
-  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
-  const userEmail = currentUser?.email ?? null;
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setCurrentUser({ id: user.id, email: user.email });
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setCurrentUser({ id: session.user.id, email: session.user.email });
-      } else {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  const userEmail = useSyncExternalStore(subscribeToEmail, getEmailSnapshot, getEmailServerSnapshot);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [currentProfile, setCurrentProfile] = useState<ReaderProfile | null>(null);
   const [currentContext, setCurrentContext] = useState<ReaderContext | null>(null);
@@ -140,7 +118,7 @@ function ChatAppContent() {
     let ignore = false;
     if (!userEmail) return;
 
-    fetch('/api/chats')
+    fetch(`/api/chats?email=${encodeURIComponent(userEmail)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!ignore && data?.chats) {
@@ -159,7 +137,7 @@ function ChatAppContent() {
   const fetchChats = useCallback(async (email: string) => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch('/api/chats');
+      const res = await fetch(`/api/chats?email=${encodeURIComponent(email)}`);
       if (res.ok) {
         const data = await res.json();
         setChatHistory(data.chats || []);

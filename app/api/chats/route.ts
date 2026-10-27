@@ -1,45 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabase } from "@/lib/db/supabase";
 import { z } from "zod";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const email = request.nextUrl.searchParams.get("email");
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    // Try fetching with user_id first (RLS enabled), with fallback for older schema
-    const { data, error } = await supabase
+    let query = supabase
       .from("user_chats")
       .select("id, title, genre, level, user_message, books, ladder, explanation, messages, created_at, updated_at")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
 
+    if (email) {
+      query = query.eq("email", email.toLowerCase().trim());
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      // Fallback matching on email if user_id column is not yet populated
-      if (user.email) {
-        const { data: fallbackData } = await supabase
-          .from("user_chats")
-          .select("id, title, genre, level, user_message, books, ladder, explanation, messages, created_at, updated_at")
-          .eq("email", user.email)
-          .order("created_at", { ascending: false })
-          .limit(50);
-
-        if (fallbackData) {
-          return NextResponse.json({ chats: fallbackData });
-        }
-      }
-
       console.error("Failed to fetch user chats:", error);
       return NextResponse.json(
         { error: "Could not retrieve chats." },
@@ -63,16 +42,6 @@ const DeleteChatSchema = z.object({
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
     const body = await request.json();
     const parsed = DeleteChatSchema.safeParse(body);
     if (!parsed.success) {
@@ -82,8 +51,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from("user_chats")
       .delete()
-      .eq("id", parsed.data.id)
-      .or(`user_id.eq.${user.id},email.eq.${user.email ?? ""}`);
+      .eq("id", parsed.data.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -103,16 +71,6 @@ const RenameChatSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
     const body = await request.json();
     const parsed = RenameChatSchema.safeParse(body);
     if (!parsed.success) {
@@ -122,8 +80,7 @@ export async function PATCH(request: NextRequest) {
     const { error } = await supabase
       .from("user_chats")
       .update({ title: parsed.data.title, updated_at: new Date().toISOString() })
-      .eq("id", parsed.data.id)
-      .or(`user_id.eq.${user.id},email.eq.${user.email ?? ""}`);
+      .eq("id", parsed.data.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

@@ -15,7 +15,6 @@ import { getEmbeddingsModel } from "@/lib/llm";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { formatSSE } from "@/lib/utils";
 import { supabase } from "@/lib/db/supabase";
-import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import type { Book } from "@/lib/schemas";
 import type { RetrievalStats } from "@/lib/retrieval/catalog";
 
@@ -45,12 +44,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ??
       "anonymous";
 
-    // Authenticate user via Supabase server client
-    const serverSupabase = await createServerSupabase();
-    const {
-      data: { user },
-    } = await serverSupabase.auth.getUser();
-    const targetUserId = user?.id || null;
+    const targetUserId = null;
 
     // Check rate limit
     const rateLimitKey = targetUserId ? `user:${targetUserId}` : ip;
@@ -98,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { profile, message, genre, level, email, chatId, excludeBookIds = [] } = parsed.data;
-    const targetEmail = user?.email || (email ? email.toLowerCase().trim() : null);
+    const targetEmail = email ? email.toLowerCase().trim() : null;
 
     // Stage 1: Raw request
     debugStages.stage1_rawRequest = { profile, message, genre, level, email, chatId, excludeBookIds };
