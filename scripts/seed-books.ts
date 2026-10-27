@@ -48,6 +48,24 @@ interface EnrichedBook extends CuratedBook {
   embedding: number[] | null;
 }
 
+function normalizeTitleAuthorKey(title: string, author: string): string {
+  const cleanTitle = (title || "")
+    .toLowerCase()
+    .split(":")[0]
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const cleanAuthor = (author || "")
+    .toLowerCase()
+    .split(",")[0]
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return `${cleanTitle}|${cleanAuthor}`;
+}
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -244,23 +262,29 @@ async function main() {
       embedding,
     };
 
-    const { error: insertError } = await supabase.from("books").insert({
-      title: enrichedBook.title,
-      author: enrichedBook.author,
-      genres: enrichedBook.genres,
-      level: enrichedBook.level,
-      complexity: enrichedBook.complexity,
-      pacing: enrichedBook.pacing,
-      tone: enrichedBook.tone,
-      page_count: enrichedBook.page_count,
-      description: enrichedBook.description,
-      cover_url: enrichedBook.cover_url,
-      avg_rating: enrichedBook.avg_rating,
-      google_books_id: enrichedBook.google_books_id,
-      isbn: enrichedBook.isbn,
-      why_start_here: enrichedBook.why_start_here,
-      embedding: enrichedBook.embedding,
-    });
+    const titleAuthorKey = normalizeTitleAuthorKey(enrichedBook.title, enrichedBook.author);
+    const { error: insertError } = await supabase.from("books").upsert(
+      {
+        title_author_key: titleAuthorKey,
+        title: enrichedBook.title,
+        author: enrichedBook.author,
+        genres: enrichedBook.genres,
+        level: enrichedBook.level,
+        complexity: enrichedBook.complexity,
+        pacing: enrichedBook.pacing,
+        tone: enrichedBook.tone,
+        page_count: enrichedBook.page_count,
+        description: enrichedBook.description,
+        cover_url: enrichedBook.cover_url,
+        avg_rating: enrichedBook.avg_rating,
+        google_books_id: enrichedBook.google_books_id,
+        isbn: enrichedBook.isbn,
+        why_start_here: enrichedBook.why_start_here,
+        embedding: enrichedBook.embedding,
+        sources: ["catalog"],
+      },
+      { onConflict: "title_author_key" }
+    );
 
     if (insertError) {
       console.error(`  ❌ Insert failed: ${insertError.message}`);
